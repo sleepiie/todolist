@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -17,6 +18,8 @@ export default function App() {
   const [task, setTask] = useState('');
   const [taskList, setTaskList] = useState([]);
   const [date, setDate] = useState(new Date());
+  const [showHighPriority, setShowHighPriority] = useState(true);
+  const [showNormalTasks, setShowNormalTasks] = useState(true);
   const MAX_TASK_LENGTH = 50;
 
   const calculateDaysUntilDue = (dueDate) => {
@@ -114,23 +117,47 @@ export default function App() {
 
       {highPriorityTasks.length > 0 && (
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>High Priority Tasks</Text>
-          <FlatList
-            data={highPriorityTasks}
-            renderItem={renderTaskItem}
-            style={styles.highPriorityList}
-          />
+          <TouchableOpacity 
+            style={styles.sectionHeader}
+            onPress={() => setShowHighPriority(!showHighPriority)}
+          >
+            <Text style={styles.sectionTitleHigh}>
+              High Priority Tasks ({highPriorityTasks.length})
+            </Text>
+            <Text style={styles.dropdownIcon}>
+              {showHighPriority ? '▼' : '▶'}
+            </Text>
+          </TouchableOpacity>
+          {showHighPriority && (
+            <FlatList
+              data={highPriorityTasks}
+              renderItem={renderTaskItem}
+              style={[styles.highPriorityList, styles.limitedList]}
+            />
+          )}
         </View>
       )}
 
       {normalTasks.length > 0 && (
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Normal Tasks</Text>
-          <FlatList
-            data={normalTasks}
-            renderItem={renderTaskItem}
-            style={styles.normalList}
-          />
+          <TouchableOpacity 
+            style={styles.sectionHeader}
+            onPress={() => setShowNormalTasks(!showNormalTasks)}
+          >
+            <Text style={styles.sectionTitle}>
+              Normal Tasks ({normalTasks.length})
+            </Text>
+            <Text style={styles.dropdownIcon}>
+              {showNormalTasks ? '▼' : '▶'}
+            </Text>
+          </TouchableOpacity>
+          {showNormalTasks && (
+            <FlatList
+              data={normalTasks}
+              renderItem={renderTaskItem}
+              style={[styles.normalList, styles.limitedList]}
+            />
+          )}
         </View>
       )}
     </SafeAreaView>
@@ -175,17 +202,39 @@ const styles = StyleSheet.create({
   sectionContainer: {
     marginBottom: 20,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginBottom: 10,
+  },
+  sectionTitleHigh: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#de4b4b',
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 10,
     color: '#333',
+  },
+  dropdownIcon: {
+    fontSize: 18,
+    color: '#666',
   },
   highPriorityList: {
     backgroundColor: '#fff3f3',
   },
   normalList: {
     backgroundColor: '#f5f5f5',
+  },
+  limitedList: {
+    maxHeight: (Platform.OS === 'ios' ? 85 : 90) * 3, // ประมาณความสูงของ 4 รายการ
   },
   taskContainer: {
     flexDirection: 'row',
@@ -216,7 +265,7 @@ const styles = StyleSheet.create({
     color: '#888',
   },
   addButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#60a5eb',
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 5,
@@ -234,5 +283,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  
 });
