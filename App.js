@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,7 +12,10 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
+
+const STORAGE_KEY = '@todo_list_key';
 
 export default function App() {
   const [task, setTask] = useState('');
@@ -21,6 +24,41 @@ export default function App() {
   const [showHighPriority, setShowHighPriority] = useState(true);
   const [showNormalTasks, setShowNormalTasks] = useState(true);
   const MAX_TASK_LENGTH = 50;
+
+  // โหลดข้อมูลเมื่อแอปเริ่มทำงาน
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  // ฟังก์ชันสำหรับบันทึกข้อมูลลง AsyncStorage
+  const saveTasks = async (tasks) => {
+    try {
+      const jsonValue = JSON.stringify(tasks);
+      await AsyncStorage.setItem(STORAGE_KEY, jsonValue);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save tasks');
+      console.error('Error saving tasks:', error);
+    }
+  };
+
+  // ฟังก์ชันสำหรับโหลดข้อมูลจาก AsyncStorage
+  const loadTasks = async () => {
+    try {
+      const jsonValue = await AsyncStorage.getItem(STORAGE_KEY);
+      if (jsonValue != null) {
+        const loadedTasks = JSON.parse(jsonValue);
+        // แปลงวันที่กลับเป็น Date object
+        const tasksWithDates = loadedTasks.map(task => ({
+          ...task,
+          dueDate: new Date(task.dueDate)
+        }));
+        setTaskList(tasksWithDates);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load tasks');
+      console.error('Error loading tasks:', error);
+    }
+  };
 
   const calculateDaysUntilDue = (dueDate) => {
     const today = new Date();
@@ -35,13 +73,13 @@ export default function App() {
     setDate(currentDate);
   };
 
-  const addTask = () => {
+  const addTask = async () => {
     if (task.trim() !== '') {
       if (task.length > MAX_TASK_LENGTH) {
         Alert.alert('Error', `Task name cannot exceed ${MAX_TASK_LENGTH} characters`);
         return;
       }
-      setTaskList([
+      const newTaskList = [
         ...taskList,
         {
           key: Math.random().toString(),
@@ -49,14 +87,18 @@ export default function App() {
           dueDate: date,
           dueDateString: date.toLocaleDateString('th-TH'),
         },
-      ]);
+      ];
+      setTaskList(newTaskList);
+      await saveTasks(newTaskList);
       setTask('');
       setDate(new Date());
     }
   };
 
-  const removeTask = (taskKey) => {
-    setTaskList(taskList.filter((task) => task.key !== taskKey));
+  const removeTask = async (taskKey) => {
+    const newTaskList = taskList.filter((task) => task.key !== taskKey);
+    setTaskList(newTaskList);
+    await saveTasks(newTaskList);
   };
 
   const renderTaskItem = ({ item }) => (
@@ -65,7 +107,7 @@ export default function App() {
         <Text style={styles.taskText}>{item.value}</Text>
         <Text style={styles.dateText}>กำหนดส่ง: {item.dueDateString}</Text>
         <Text style={styles.daysLeftText}>
-          {calculateDaysUntilDue(item.dueDate)} วันที่เหลือ
+          เหลือเวลา {calculateDaysUntilDue(item.dueDate)} วัน
         </Text>
       </View>
       <Button
@@ -234,7 +276,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   limitedList: {
-    maxHeight: (Platform.OS === 'ios' ? 85 : 90) * 3, // ประมาณความสูงของ 4 รายการ
+    maxHeight: (Platform.OS === 'ios' ? 85 : 90) * 3, // ประมาณความสูงของ 3 รายการ
   },
   taskContainer: {
     flexDirection: 'row',
@@ -262,7 +304,7 @@ const styles = StyleSheet.create({
   },
   daysLeftText: {
     fontSize: 12,
-    color: '#888',
+    color: '#ff776e',
   },
   addButton: {
     backgroundColor: '#60a5eb',
