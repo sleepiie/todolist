@@ -14,40 +14,54 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Checkbox } from 'react-native-paper';
+import { Calendar } from 'lucide-react-native';
 
 const STORAGE_KEY = '@todo_list_key';
+const DONE_STORAGE_KEY = '@done_tasks_key';
+const DONE_DAYS_LIMIT = 30;
 
 export default function App() {
   const [task, setTask] = useState('');
   const [taskList, setTaskList] = useState([]);
+  const [doneTasks, setDoneTasks] = useState([]);
   const [date, setDate] = useState(new Date());
   const [showHighPriority, setShowHighPriority] = useState(true);
   const [showNormalTasks, setShowNormalTasks] = useState(true);
+  const [showDoneTasks, setShowDoneTasks] = useState(true);
   const MAX_TASK_LENGTH = 50;
 
-  // โหลดข้อมูลเมื่อแอปเริ่มทำงาน
   useEffect(() => {
     loadTasks();
+    loadDoneTasks();
+    // ตั้งเวลาตรวจสอบและลบ done tasks ที่เกิน 30 วันทุกวัน
+    const cleanupInterval = setInterval(cleanupDoneTasks, 86400000); // 24 hours
+    return () => clearInterval(cleanupInterval);
   }, []);
 
-  // ฟังก์ชันสำหรับบันทึกข้อมูลลง AsyncStorage
   const saveTasks = async (tasks) => {
     try {
       const jsonValue = JSON.stringify(tasks);
       await AsyncStorage.setItem(STORAGE_KEY, jsonValue);
     } catch (error) {
       Alert.alert('Error', 'Failed to save tasks');
-      console.error('Error saving tasks:', error);
     }
   };
 
-  // ฟังก์ชันสำหรับโหลดข้อมูลจาก AsyncStorage
+  const saveDoneTasks = async (tasks) => {
+    try {
+      const jsonValue = JSON.stringify(tasks);
+      await AsyncStorage.setItem(DONE_STORAGE_KEY, jsonValue);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save done tasks');
+    }
+  };
+
   const loadTasks = async () => {
     try {
       const jsonValue = await AsyncStorage.getItem(STORAGE_KEY);
       if (jsonValue != null) {
         const loadedTasks = JSON.parse(jsonValue);
-        // แปลงวันที่กลับเป็น Date object
         const tasksWithDates = loadedTasks.map(task => ({
           ...task,
           dueDate: new Date(task.dueDate)
@@ -56,17 +70,60 @@ export default function App() {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to load tasks');
-      console.error('Error loading tasks:', error);
+    }
+  };
+
+  const loadDoneTasks = async () => {
+    try {
+      const jsonValue = await AsyncStorage.getItem(DONE_STORAGE_KEY);
+      if (jsonValue != null) {
+        const loadedTasks = JSON.parse(jsonValue);
+        const tasksWithDates = loadedTasks.map(task => ({
+          ...task,
+          dueDate: new Date(task.dueDate),
+          completedDate: new Date(task.completedDate)
+        }));
+        setDoneTasks(tasksWithDates);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load done tasks');
+    }
+  };
+
+  const cleanupDoneTasks = () => {
+    const currentDate = new Date();
+    const updatedDoneTasks = doneTasks.filter(task => {
+      const completedDate = new Date(task.completedDate);
+      const diffTime = currentDate - completedDate;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= DONE_DAYS_LIMIT;
+    });
+
+    if (updatedDoneTasks.length !== doneTasks.length) {
+      setDoneTasks(updatedDoneTasks);
+      saveDoneTasks(updatedDoneTasks);
     }
   };
 
   const calculateDaysUntilDue = (dueDate) => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // รีเซ็ตเวลาเป็น 00:00:00 เพื่อการเปรียบเทียบที่แม่นยำ
     const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
     const diffTime = due - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };
+
+  const sortedTasks = taskList.sort((a, b) => {
+    const daysA = calculateDaysUntilDue(a.dueDate);
+    const daysB = calculateDaysUntilDue(b.dueDate);
+    return daysA - daysB; // เรียงจากน้อยไปมาก
+  });
+
+  const sortedDoneTasks = doneTasks.sort((a, b) => {
+    return new Date(b.completedDate) - new Date(a.completedDate);
+  });
 
   const onChange = (event, selectedDate) => {
     const currentDate = selectedDate || date;
@@ -95,34 +152,81 @@ export default function App() {
     }
   };
 
-  const removeTask = async (taskKey) => {
-    const newTaskList = taskList.filter((task) => task.key !== taskKey);
-    setTaskList(newTaskList);
-    await saveTasks(newTaskList);
+  const completeTask = async (taskKey) => {
+    const taskToComplete = taskList.find(task => task.key === taskKey);
+    if (taskToComplete) {
+      // เพิ่ม task ไปยัง doneTasks พร้อมวันที่เสร็จ
+      const completedTask = {
+        ...taskToComplete,
+        completedDate: new Date(),
+      };
+      const newDoneTasks = [...doneTasks, completedTask];
+      setDoneTasks(newDoneTasks);
+      await saveDoneTasks(newDoneTasks);
+
+      // ลบ task จาก taskList
+      const newTaskList = taskList.filter(task => task.key !== taskKey);
+      setTaskList(newTaskList);
+      await saveTasks(newTaskList);
+    }
   };
 
-  const renderTaskItem = ({ item }) => (
+  const removeTask = async (taskKey, isDoneTask = false) => {
+    if (isDoneTask) {
+      const newDoneTasks = doneTasks.filter((task) => task.key !== taskKey);
+      setDoneTasks(newDoneTasks);
+      await saveDoneTasks(newDoneTasks);
+    } else {
+      const newTaskList = taskList.filter((task) => task.key !== taskKey);
+      setTaskList(newTaskList);
+      await saveTasks(newTaskList);
+    }
+  };
+
+  const renderTaskItem = ({ item, isDoneTask = false }) => (
     <View style={styles.taskContainer}>
+      {!isDoneTask && (
+         <View style={styles.checkboxContainer}>
+          <Checkbox
+            status={isDoneTask ? 'checked' : 'unchecked'}
+            onPress={() => completeTask(item.key)}
+            color="#60a5eb"
+            uncheckedColor="#60a5eb"
+            style={styles.checkbox}
+          />
+        </View>
+      )}
       <View style={styles.taskInfo}>
-        <Text style={styles.taskText}>{item.value}</Text>
-        <Text style={styles.dateText}>กำหนดส่ง: {item.dueDateString}</Text>
-        <Text style={styles.daysLeftText}>
-          เหลือเวลา {calculateDaysUntilDue(item.dueDate)} วัน
+        <Text style={[
+          styles.taskText,
+          isDoneTask && styles.doneTaskText
+        ]}>{item.value}</Text>
+        <Text style={styles.dateText}>
+          {isDoneTask ? 'เสร็จเมื่อ: ' : 'กำหนดส่ง: '}
+          {isDoneTask 
+            ? new Date(item.completedDate).toLocaleDateString('th-TH')
+            : item.dueDateString
+          }
         </Text>
+        {!isDoneTask && (
+          <Text style={styles.daysLeftText}>
+            เหลือเวลา {calculateDaysUntilDue(item.dueDate)} วัน
+          </Text>
+        )}
       </View>
       <Button
         title="Remove"
-        onPress={() => removeTask(item.key)}
+        onPress={() => removeTask(item.key, isDoneTask)}
         color="#ff4545"
       />
     </View>
   );
 
-  const highPriorityTasks = taskList.filter(
+  const highPriorityTasks = sortedTasks.filter(
     task => calculateDaysUntilDue(task.dueDate) <= 7
   );
 
-  const normalTasks = taskList.filter(
+  const normalTasks = sortedTasks.filter(
     task => calculateDaysUntilDue(task.dueDate) > 7
   );
 
@@ -138,6 +242,7 @@ export default function App() {
           maxLength={MAX_TASK_LENGTH}
         />
         <View style={styles.datePickerContainer}>
+          <Calendar size={20} color="#60a5eb" style={styles.calendarIcon} />
           <DateTimePicker
             testID="dateTimePicker"
             value={date}
@@ -157,7 +262,7 @@ export default function App() {
         </TouchableOpacity>
       </View>
 
-      {highPriorityTasks.length > 0 && (
+      {highPriorityTasks.length >= 0 && (
         <View style={styles.sectionContainer}>
           <TouchableOpacity 
             style={styles.sectionHeader}
@@ -173,14 +278,14 @@ export default function App() {
           {showHighPriority && (
             <FlatList
               data={highPriorityTasks}
-              renderItem={renderTaskItem}
+              renderItem={(props) => renderTaskItem({ ...props, isDoneTask: false })}
               style={[styles.highPriorityList, styles.limitedList]}
             />
           )}
         </View>
       )}
 
-      {normalTasks.length > 0 && (
+      {normalTasks.length >= 0 && (
         <View style={styles.sectionContainer}>
           <TouchableOpacity 
             style={styles.sectionHeader}
@@ -196,8 +301,31 @@ export default function App() {
           {showNormalTasks && (
             <FlatList
               data={normalTasks}
-              renderItem={renderTaskItem}
+              renderItem={(props) => renderTaskItem({ ...props, isDoneTask: false })}
               style={[styles.normalList, styles.limitedList]}
+            />
+          )}
+        </View>
+      )}
+
+      {doneTasks.length >= 0 && (
+        <View style={styles.sectionContainer}>
+          <TouchableOpacity 
+            style={styles.sectionHeader}
+            onPress={() => setShowDoneTasks(!showDoneTasks)}
+          >
+            <Text style={styles.sectionTitleDone}>
+              Completed Tasks ({sortedDoneTasks.length})
+            </Text>
+            <Text style={styles.dropdownIcon}>
+              {showDoneTasks ? '▼' : '▶'}
+            </Text>
+          </TouchableOpacity>
+          {showDoneTasks && (
+            <FlatList
+              data={sortedDoneTasks}
+              renderItem={(props) => renderTaskItem({ ...props, isDoneTask: true })}
+              style={[styles.doneList, styles.limitedList]}
             />
           )}
         </View>
@@ -225,6 +353,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+
   input: {
     borderBottomColor: '#ccc',
     borderBottomWidth: 1,
@@ -233,13 +362,29 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   datePickerContainer: {
-    width: Platform.OS === 'ios' ? 90 : 110,
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: Platform.OS === 'ios' ? 120 : 140,
     marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    padding: 5,
+    backgroundColor: '#f5f5f5',
+    height: 40, // เพิ่มความสูงที่แน่นอน
   },
+  calendarIcon: {
+    marginRight: 5,
+    marginLeft: 5,
+    alignSelf: 'center', // เพิ่ม alignSelf
+  },
+
   datePicker: {
-    width: '100%',
-    height: 35,
-    marginTop: Platform.OS === 'ios' ? -10 : 0,
+    flex: 1,
+    height: 30,
+    marginTop: 0, // ลบ marginTop ออก
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionContainer: {
     marginBottom: 20,
@@ -325,4 +470,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  doneTaskText: {
+    textDecorationLine: 'line-through',
+    color: '#888',
+  },
+  sectionTitleDone: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  doneList: {
+    backgroundColor: '#f0f7f0',
+  },
+  checkboxContainer: {
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 35,
+    height: 35,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 5,
+  },
+  
+  checkbox: {
+    transform: Platform.OS === 'ios' ? [{ scale: 0.8 }] : [{ scale: 1.2 }],
+  },
+
+  taskContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginBottom: 10,
+    marginHorizontal: 5,
+  },
+  
 });
