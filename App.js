@@ -8,8 +8,8 @@ import {
   FlatList,
   SafeAreaView,
   Platform,
-  TouchableOpacity,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -19,9 +19,16 @@ export default function App() {
   const [date, setDate] = useState(new Date());
   const MAX_TASK_LENGTH = 50;
 
+  const calculateDaysUntilDue = (dueDate) => {
+    const today = new Date();
+    const due = new Date(dueDate);
+    const diffTime = due - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
   const onChange = (event, selectedDate) => {
     const currentDate = selectedDate || date;
-    Platform.OS === 'ios';
     setDate(currentDate);
   };
 
@@ -36,7 +43,8 @@ export default function App() {
         {
           key: Math.random().toString(),
           value: task,
-          dueDate: date.toLocaleDateString('th-TH'),
+          dueDate: date,
+          dueDateString: date.toLocaleDateString('th-TH'),
         },
       ]);
       setTask('');
@@ -47,6 +55,31 @@ export default function App() {
   const removeTask = (taskKey) => {
     setTaskList(taskList.filter((task) => task.key !== taskKey));
   };
+
+  const renderTaskItem = ({ item }) => (
+    <View style={styles.taskContainer}>
+      <View style={styles.taskInfo}>
+        <Text style={styles.taskText}>{item.value}</Text>
+        <Text style={styles.dateText}>กำหนดส่ง: {item.dueDateString}</Text>
+        <Text style={styles.daysLeftText}>
+          {calculateDaysUntilDue(item.dueDate)} วันที่เหลือ
+        </Text>
+      </View>
+      <Button
+        title="Remove"
+        onPress={() => removeTask(item.key)}
+        color="#ff4545"
+      />
+    </View>
+  );
+
+  const highPriorityTasks = taskList.filter(
+    task => calculateDaysUntilDue(task.dueDate) <= 7
+  );
+
+  const normalTasks = taskList.filter(
+    task => calculateDaysUntilDue(task.dueDate) > 7
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -71,24 +104,35 @@ export default function App() {
             themeVariant="light"
           />
         </View>
-        <Button title="Add" onPress={addTask} />
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={addTask}
+        >
+          <Text style={styles.addButtonText}>Add</Text>
+        </TouchableOpacity>
       </View>
-      <FlatList
-        data={taskList}
-        renderItem={({ item }) => (
-          <View style={styles.taskContainer}>
-            <View style={styles.taskInfo}>
-              <Text style={styles.taskText}>{item.value}</Text>
-              <Text style={styles.dateText}>กำหนดส่ง: {item.dueDate}</Text>
-            </View>
-            <Button
-              title="Remove"
-              onPress={() => removeTask(item.key)}
-              color="#ff4545"
-            />
-          </View>
-        )}
-      />
+
+      {highPriorityTasks.length > 0 && (
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>High Priority Tasks</Text>
+          <FlatList
+            data={highPriorityTasks}
+            renderItem={renderTaskItem}
+            style={styles.highPriorityList}
+          />
+        </View>
+      )}
+
+      {normalTasks.length > 0 && (
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Normal Tasks</Text>
+          <FlatList
+            data={normalTasks}
+            renderItem={renderTaskItem}
+            style={styles.normalList}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -120,13 +164,28 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   datePickerContainer: {
-    width: Platform.OS === 'ios' ? 100 : 120,
+    width: Platform.OS === 'ios' ? 90 : 110,
     marginRight: 10,
   },
   datePicker: {
     width: '100%',
-    height: 40,
+    height: 35,
     marginTop: Platform.OS === 'ios' ? -10 : 0,
+  },
+  sectionContainer: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  highPriorityList: {
+    backgroundColor: '#fff3f3',
+  },
+  normalList: {
+    backgroundColor: '#f5f5f5',
   },
   taskContainer: {
     flexDirection: 'row',
@@ -138,6 +197,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     marginBottom: 10,
+    marginHorizontal: 5,
   },
   taskInfo: {
     flex: 1,
@@ -149,5 +209,30 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 12,
     color: '#666',
+    marginBottom: 3,
   },
+  daysLeftText: {
+    fontSize: 12,
+    color: '#888',
+  },
+  addButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  
 });
