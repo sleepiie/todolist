@@ -39,6 +39,7 @@ export default function App() {
     return () => clearInterval(cleanupInterval);
   }, []);
 
+
   const saveTasks = async (tasks) => {
     try {
       const jsonValue = JSON.stringify(tasks);
@@ -231,163 +232,177 @@ export default function App() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Todo List</Text>
-      <View style={styles.inputContainer}>
-        <TextInput
-          placeholder="Enter task"
-          style={styles.input}
-          value={task}
-          onChangeText={(text) => setTask(text)}
-          maxLength={MAX_TASK_LENGTH}
-        />
-        <View style={styles.datePickerContainer}>
-          <Calendar size={20} color="#60a5eb" style={styles.calendarIcon} />
-          <DateTimePicker
-            testID="dateTimePicker"
-            value={date}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'compact' : 'default'}
-            onChange={onChange}
-            minimumDate={new Date()}
-            style={styles.datePicker}
-            themeVariant="light"
-          />
-        </View>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={addTask}
-        >
-          <Text style={styles.addButtonText}>Add</Text>
-        </TouchableOpacity>
-      </View>
-
-      {highPriorityTasks.length >= 0 && (
-        <View style={styles.sectionContainer}>
-          <TouchableOpacity 
-            style={styles.sectionHeader}
-            onPress={() => setShowHighPriority(!showHighPriority)}
-          >
-            <Text style={styles.sectionTitleHigh}>
-              High Priority Tasks ({highPriorityTasks.length})
-            </Text>
-            <Text style={styles.dropdownIcon}>
-              {showHighPriority ? '▼' : '▶'}
-            </Text>
-          </TouchableOpacity>
-          {showHighPriority && (
-            <FlatList
-              data={highPriorityTasks}
-              renderItem={(props) => renderTaskItem({ ...props, isDoneTask: false })}
-              style={[styles.highPriorityList, styles.limitedList]}
+    <View style={styles.outerContainer}>
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>👾 Todo List 👾</Text>
+        <View style={styles.inputContainer}>
+          <View style={styles.row}>
+            <TextInput
+              placeholder="Enter task"
+              style={styles.input}
+              value={task}
+              onChangeText={(text) => setTask(text)}
+              maxLength={MAX_TASK_LENGTH}
             />
-          )}
-        </View>
-      )}
-
-      {normalTasks.length >= 0 && (
-        <View style={styles.sectionContainer}>
+            <View style={styles.datePickerContainer}>
+              <Calendar size={20} color="#60a5eb" style={styles.calendarIcon} />
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'compact' : 'default'}
+                onChange={onChange}
+                minimumDate={new Date()}
+                style={styles.datePicker}
+              />
+            </View>
+          </View>
+        
           <TouchableOpacity 
-            style={styles.sectionHeader}
-            onPress={() => setShowNormalTasks(!showNormalTasks)}
+            style={styles.addButton}
+            onPress={addTask}
           >
-            <Text style={styles.sectionTitle}>
-              Normal Tasks ({normalTasks.length})
-            </Text>
-            <Text style={styles.dropdownIcon}>
-              {showNormalTasks ? '▼' : '▶'}
-            </Text>
+            <Text style={styles.addButtonText}>Add Task</Text>
           </TouchableOpacity>
-          {showNormalTasks && (
-            <FlatList
-              data={normalTasks}
-              renderItem={(props) => renderTaskItem({ ...props, isDoneTask: false })}
-              style={[styles.normalList, styles.limitedList]}
-            />
-          )}
         </View>
-      )}
 
-      {doneTasks.length >= 0 && (
-        <View style={styles.sectionContainer}>
-          <TouchableOpacity 
-            style={styles.sectionHeader}
-            onPress={() => setShowDoneTasks(!showDoneTasks)}
-          >
-            <Text style={styles.sectionTitleDone}>
-              Completed Tasks ({sortedDoneTasks.length})
-            </Text>
-            <Text style={styles.dropdownIcon}>
-              {showDoneTasks ? '▼' : '▶'}
-            </Text>
-          </TouchableOpacity>
-          {showDoneTasks && (
-            <FlatList
-              data={sortedDoneTasks}
-              renderItem={(props) => renderTaskItem({ ...props, isDoneTask: true })}
-              style={[styles.doneList, styles.limitedList]}
-            />
-          )}
-        </View>
-      )}
-    </SafeAreaView>
+
+        {highPriorityTasks.length >= 0 && (
+          <View style={styles.sectionContainer}>
+            <TouchableOpacity 
+              style={styles.sectionHeader}
+              onPress={() => setShowHighPriority(!showHighPriority)}
+            >
+              <Text style={styles.sectionTitleHigh}>
+                High Priority Tasks ({highPriorityTasks.length})
+              </Text>
+              <Text style={styles.dropdownIcon}>
+                {showHighPriority ? '▼' : '▶'}
+              </Text>
+            </TouchableOpacity>
+            {showHighPriority && (
+              <FlatList
+                data={highPriorityTasks}
+                renderItem={(props) => renderTaskItem({ ...props, isDoneTask: false })}
+                style={[styles.highPriorityList, styles.limitedList]}
+              />
+            )}
+          </View>
+        )}
+
+        {normalTasks.length >= 0 && (
+          <View style={styles.sectionContainer}>
+            <TouchableOpacity 
+              style={styles.sectionHeader}
+              onPress={() => setShowNormalTasks(!showNormalTasks)}
+            >
+              <Text style={styles.sectionTitle}>
+                Normal Tasks ({normalTasks.length})
+              </Text>
+              <Text style={styles.dropdownIcon}>
+                {showNormalTasks ? '▼' : '▶'}
+              </Text>
+            </TouchableOpacity>
+            {showNormalTasks && (
+              <FlatList
+                data={normalTasks}
+                renderItem={(props) => renderTaskItem({ ...props, isDoneTask: false })}
+                style={[styles.normalList, styles.limitedList]}
+              />
+            )}
+          </View>
+        )}
+
+        {doneTasks.length >= 0 && (
+          <View style={styles.sectionContainer}>
+            <TouchableOpacity 
+              style={styles.sectionHeader}
+              onPress={() => setShowDoneTasks(!showDoneTasks)}
+            >
+              <Text style={styles.sectionTitleDone}>
+                Completed Tasks ({sortedDoneTasks.length})
+              </Text>
+              <Text style={styles.dropdownIcon}>
+                {showDoneTasks ? '▼' : '▶'}
+              </Text>
+            </TouchableOpacity>
+            {showDoneTasks && (
+              <FlatList
+                data={sortedDoneTasks}
+                renderItem={(props) => renderTaskItem({ ...props, isDoneTask: true })}
+                style={[styles.doneList, styles.limitedList]}
+              />
+            )}
+          </View>
+        )}
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: '#f0f0f5', 
+  },
   container: {
+    margin: 15,
     flex: 1,
     paddingTop: 70,
     paddingHorizontal: 20,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#f0f0f5',
   },
   title: {
-    fontSize: 24,
+    paddingTop: 20,
+    fontSize: 26,
     fontWeight: 'bold',
-    marginBottom: 20,
+    color: '#333',
     textAlign: 'center',
+    marginBottom: 20,
   },
   inputContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column', 
     marginBottom: 20,
+    marginHorizontal: 10,
+    gap: 10, 
   },
-
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   input: {
-    borderBottomColor: '#ccc',
-    borderBottomWidth: 1,
-    padding: 10,
     flex: 1,
-    marginRight: 10,
+    padding: 10, 
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderColor: '#ddd',
+    borderWidth: 1,
+    fontSize: 18,  
   },
   datePickerContainer: {
+    marginLeft: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    width: Platform.OS === 'ios' ? 120 : 140,
-    marginRight: 10,
-    borderWidth: 1,
+    backgroundColor: '#fff',
+    borderRadius: 10,
     borderColor: '#ddd',
-    borderRadius: 5,
-    padding: 5,
-    backgroundColor: '#f5f5f5',
-    height: 40, // เพิ่มความสูงที่แน่นอน
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    height: 42,
+    minWidth: 120,
+
   },
   calendarIcon: {
-    marginRight: 5,
-    marginLeft: 5,
-    alignSelf: 'center', // เพิ่ม alignSelf
+    marginRight: 4,
   },
-
   datePicker: {
     flex: 1,
-    height: 30,
-    marginTop: 0, // ลบ marginTop ออก
+    height: 25, 
     alignItems: 'center',
     justifyContent: 'center',
   },
   sectionContainer: {
-    marginBottom: 20,
+    marginBottom: 5,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -395,10 +410,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
     padding: 15,
-    borderRadius: 5,
+    borderRadius: 10,  // เพิ่มขอบโค้งมน
     borderWidth: 1,
     borderColor: '#ddd',
-    marginBottom: 10,
+    marginBottom: 0,
+    elevation: 2,  // เพิ่มเงาให้กับส่วนหัว
   },
   sectionTitleHigh: {
     fontSize: 18,
@@ -423,24 +439,12 @@ const styles = StyleSheet.create({
   limitedList: {
     maxHeight: (Platform.OS === 'ios' ? 85 : 90) * 3, // ประมาณความสูงของ 3 รายการ
   },
-  taskContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginBottom: 10,
-    marginHorizontal: 5,
-  },
   taskInfo: {
     flex: 1,
   },
   taskText: {
     fontSize: 16,
-    marginBottom: 5,
+    color: '#333',
   },
   dateText: {
     fontSize: 12,
@@ -453,26 +457,24 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: '#60a5eb',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 15,
-    borderRadius: 5,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
+    borderRadius: 10,  // ขอบมน
+    elevation: 5,  // เพิ่มเงาให้กับปุ่ม
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   addButtonText: {
+    alignSelf: 'center',
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   doneTaskText: {
     textDecorationLine: 'line-through',
-    color: '#888',
+    color: '#999',
   },
   sectionTitleDone: {
     fontSize: 18,
@@ -486,8 +488,8 @@ const styles = StyleSheet.create({
     marginRight: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 35,
-    height: 35,
+    width: 30,
+    height: 30,
     backgroundColor: '#f5f5f5',
     borderRadius: 5,
   },
@@ -497,16 +499,17 @@ const styles = StyleSheet.create({
   },
 
   taskContainer: {
+    marginTop: 5,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 5,
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#ddd',
     marginBottom: 10,
     marginHorizontal: 5,
   },
-  
 });
+
