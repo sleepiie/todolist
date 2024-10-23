@@ -23,6 +23,7 @@ const DONE_DAYS_LIMIT = 30;
 
 export default function App() {
   const [task, setTask] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [taskList, setTaskList] = useState([]);
   const [doneTasks, setDoneTasks] = useState([]);
   const [date, setDate] = useState(new Date());
@@ -127,8 +128,14 @@ export default function App() {
   });
 
   const onChange = (event, selectedDate) => {
-    const currentDate = selectedDate || date;
-    setDate(currentDate);
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  };
+
+  const showDatePickerModal = () => {
+    setShowDatePicker(true);
   };
 
   const addTask = async () => {
@@ -230,6 +237,31 @@ export default function App() {
   const normalTasks = sortedTasks.filter(
     task => calculateDaysUntilDue(task.dueDate) > 7
   );
+  const renderDatePicker = () => {
+    return (
+      <>
+        <TouchableOpacity
+          style={styles.datePickerContainer}
+          onPress={showDatePickerModal}
+        >
+          <Calendar size={20} color="#60a5eb" style={styles.calendarIcon} />
+          <Text style={styles.dateText}>
+            {date.toLocaleDateString('th-TH')}
+          </Text>
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display= 'default'
+            onChange={onChange}
+            minimumDate={new Date()}
+          />
+        )}
+      </>
+    );
+  };
 
   return (
     <View style={styles.outerContainer}>
@@ -244,17 +276,7 @@ export default function App() {
               onChangeText={(text) => setTask(text)}
               maxLength={MAX_TASK_LENGTH}
             />
-            <View style={styles.datePickerContainer}>
-              <Calendar size={20} color="#60a5eb" style={styles.calendarIcon} />
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'compact' : 'default'}
-                onChange={onChange}
-                minimumDate={new Date()}
-                style={styles.datePicker}
-              />
-            </View>
+            {renderDatePicker()}
           </View>
         
           <TouchableOpacity 
@@ -510,6 +532,23 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     marginBottom: 10,
     marginHorizontal: 5,
+  },
+  datePickerContainer: {
+    marginLeft: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    borderColor: '#ddd',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    height: 42,
+    minWidth: 120,
+  },
+  dateText: {
+    marginLeft: 4,
+    fontSize: 16,
+    color: '#333',
   },
 });
 
