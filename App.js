@@ -10,7 +10,6 @@ import {
   Platform,
   Alert,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -33,22 +32,20 @@ export default function App() {
   const MAX_TASK_LENGTH = 50;
 
   useEffect(() => {
-    loadTasks();
-    loadDoneTasks();
-    // ตั้งเวลาตรวจสอบและลบ done tasks ที่เกิน 30 วันทุกวัน
-    const cleanupInterval = setInterval(cleanupDoneTasks, 86400000); // 24 hours
+    const loadData = async () => {
+      try {
+        await Promise.all([loadTasks(), loadDoneTasks()]);
+      } catch (error) {
+        console.error('Initial load error:', error);
+        Alert.alert('Error', 'Failed to initialize app');
+      }
+    };
+  
+    loadData();
+  
+    const cleanupInterval = setInterval(cleanupDoneTasks, 86400000);
     return () => clearInterval(cleanupInterval);
   }, []);
-
-
-  const saveTasks = async (tasks) => {
-    try {
-      const jsonValue = JSON.stringify(tasks);
-      await AsyncStorage.setItem(STORAGE_KEY, jsonValue);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save tasks');
-    }
-  };
 
   const saveDoneTasks = async (tasks) => {
     try {
@@ -59,6 +56,7 @@ export default function App() {
     }
   };
 
+
   const loadTasks = async () => {
     try {
       const jsonValue = await AsyncStorage.getItem(STORAGE_KEY);
@@ -66,15 +64,16 @@ export default function App() {
         const loadedTasks = JSON.parse(jsonValue);
         const tasksWithDates = loadedTasks.map(task => ({
           ...task,
-          dueDate: new Date(task.dueDate)
+          dueDate: task.dueDate ? new Date(task.dueDate) : new Date() // เพิ่มการตรวจสอบ
         }));
         setTaskList(tasksWithDates);
       }
     } catch (error) {
+      console.error('Load tasks error:', error);
       Alert.alert('Error', 'Failed to load tasks');
     }
   };
-
+  
   const loadDoneTasks = async () => {
     try {
       const jsonValue = await AsyncStorage.getItem(DONE_STORAGE_KEY);
@@ -82,12 +81,13 @@ export default function App() {
         const loadedTasks = JSON.parse(jsonValue);
         const tasksWithDates = loadedTasks.map(task => ({
           ...task,
-          dueDate: new Date(task.dueDate),
-          completedDate: new Date(task.completedDate)
+          dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
+          completedDate: task.completedDate ? new Date(task.completedDate) : new Date()
         }));
         setDoneTasks(tasksWithDates);
       }
     } catch (error) {
+      console.error('Load done tasks error:', error);
       Alert.alert('Error', 'Failed to load done tasks');
     }
   };
@@ -159,6 +159,14 @@ export default function App() {
       setDate(new Date());
     }
   };
+  const saveTasks = async (tasks) => {
+    try {
+      const jsonValue = JSON.stringify(tasks);
+      await AsyncStorage.setItem(STORAGE_KEY, jsonValue);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save tasks');
+    }
+  };
 
   const completeTask = async (taskKey) => {
     const taskToComplete = taskList.find(task => task.key === taskKey);
@@ -191,44 +199,48 @@ export default function App() {
     }
   };
 
-  const renderTaskItem = ({ item, isDoneTask = false }) => (
-    <View style={styles.taskContainer}>
-      {!isDoneTask && (
-         <View style={styles.checkboxContainer}>
-          <Checkbox
-            status={isDoneTask ? 'checked' : 'unchecked'}
-            onPress={() => completeTask(item.key)}
-            color="#60a5eb"
-            uncheckedColor="#60a5eb"
-            style={styles.checkbox}
-          />
-        </View>
-      )}
-      <View style={styles.taskInfo}>
-        <Text style={[
-          styles.taskText,
-          isDoneTask && styles.doneTaskText
-        ]}>{item.value}</Text>
-        <Text style={styles.dateText}>
-          {isDoneTask ? 'เสร็จเมื่อ: ' : 'กำหนดส่ง: '}
-          {isDoneTask 
-            ? new Date(item.completedDate).toLocaleDateString('th-TH')
-            : item.dueDateString
-          }
-        </Text>
+  const renderTaskItem = ({ item, isDoneTask = false }) => {
+    if (!item || !item.value) return null;
+    
+    return (
+      <View style={styles.taskContainer}>
         {!isDoneTask && (
-          <Text style={styles.daysLeftText}>
-            เหลือเวลา {calculateDaysUntilDue(item.dueDate)} วัน
-          </Text>
+          <View style={styles.checkboxContainer}>
+            <Checkbox
+              status={isDoneTask ? 'checked' : 'unchecked'}
+              onPress={() => completeTask(item.key)}
+              color="#60a5eb"
+              uncheckedColor="#60a5eb"
+              style={styles.checkbox}
+            />
+          </View>
         )}
+        <View style={styles.taskInfo}>
+          <Text style={[
+            styles.taskText,
+            isDoneTask && styles.doneTaskText
+          ]}>{item.value}</Text>
+          <Text style={styles.dateText}>
+            {isDoneTask ? 'เสร็จเมื่อ: ' : 'กำหนดส่ง: '}
+            {isDoneTask 
+              ? (item.completedDate ? new Date(item.completedDate).toLocaleDateString('th-TH') : '-')
+              : (item.dueDateString || '-')
+            }
+          </Text>
+          {!isDoneTask && (
+            <Text style={styles.daysLeftText}>
+              เหลือเวลา {calculateDaysUntilDue(item.dueDate)} วัน
+            </Text>
+          )}
+        </View>
+        <Button
+          title="Remove"
+          onPress={() => removeTask(item.key, isDoneTask)}
+          color="#ff4545"
+        />
       </View>
-      <Button
-        title="Remove"
-        onPress={() => removeTask(item.key, isDoneTask)}
-        color="#ff4545"
-      />
-    </View>
-  );
+    );
+  };
 
   const highPriorityTasks = sortedTasks.filter(
     task => calculateDaysUntilDue(task.dueDate) <= 7
@@ -369,8 +381,8 @@ const styles = StyleSheet.create({
   container: {
     margin: 15,
     flex: 1,
-    paddingTop: 70,
-    paddingHorizontal: 20,
+    paddingTop: 25,
+    paddingHorizontal: 10,
     backgroundColor: '#f0f0f5',
   },
   title: {
@@ -468,11 +480,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  dateText: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 3,
-  },
   daysLeftText: {
     fontSize: 12,
     color: '#ff776e',
@@ -532,18 +539,6 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     marginBottom: 10,
     marginHorizontal: 5,
-  },
-  datePickerContainer: {
-    marginLeft: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    borderColor: '#ddd',
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    height: 42,
-    minWidth: 120,
   },
   dateText: {
     marginLeft: 4,
